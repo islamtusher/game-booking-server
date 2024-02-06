@@ -49,6 +49,7 @@ async function run() {
     const database = client?.db("game-booking-database");
     const usersCollection = database.collection("users");
     const gamesCollection = database.collection("games");
+    const bookedGamesCollection = database.collection("bookedGames");
 
     //* Student Register Route
     app.post("/register", async (req, res) => {
@@ -78,7 +79,6 @@ async function run() {
         // Save the user to the database
         await usersCollection.insertOne(newUser);
 
-        console.log("key:", process.env.JWT_ACCESS_TOKEN);
         // Generate JWT token
         const token = jwt.sign(
           { student_id: newUser.student_id },
@@ -163,7 +163,6 @@ async function run() {
     //* Game Register Route
     app.post("/game-register", async (req, res) => {
       const token = req.headers.accesstoken;
-      console.log(token);
       if (token) {
         try {
           const data = req.body;
@@ -193,18 +192,50 @@ async function run() {
     });
 
     // Delete game
-    app.delete("/games/:game_name", async (req, res) => {
+    app.delete("/games", async (req, res) => {
       try {
-        // console.log(req.params.id);
-        console.log(req.params.game_name);
-        const query = { game_name: ObjectId(req.params.game_name) };
-        //  const result = await gamesCollection.deleteOne(query);
-        //   res.send(result);
-        // res.status(200).json({ message: "Delete Successfully" });
+        console.log(req.query.id);
+        const query = { '_id': ObjectId(req.params.id) };
+         const result = await gamesCollection.deleteOne(query);
+          res.send(result);
+          res.status(200).json({ message: "Delete Successfully" });
       } catch (error) {
         res.status(500).json({ error: "Internal Server Error" });
       }
     });
+
+    //* book a game
+    app.post("/game-book", async (req, res) => {
+      const token = req.headers.accesstoken;
+      if (token) {
+        try {
+          const data = req.body;
+
+          // Save the user to the database
+          await bookedGamesCollection.insertOne(data);
+
+          res.status(200).json({ message: "Game Booked successfully" });
+        } catch (error) {
+          console.error(error);
+          res.status(500).json({ error: "Internal Server Error" });
+        }
+      }
+    });
+
+    //* Get my games
+    app.get("/my-booked-games", async (req, res) => {
+      const token = req.headers.accesstoken;      
+       try {
+         const query = {};
+         const cursor = bookedGamesCollection.find(query);
+         const result = await cursor.toArray();
+         res.send(result);
+       } catch (error) {
+         console.error(error);
+         res.status(500).json({ error: "Internal Server Error" });
+       }
+    });
+
 
     // TEST ROUTE
     app.get("/user", (req, res) => {
